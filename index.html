@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Anti-Blur E-Paper Typer Assistant</title>
+    <title>High-Contrast E-Paper Typer Assistant</title>
     <style>
         :root {
             --bg-main: #0f172a;
@@ -165,7 +165,7 @@
             will-change: transform;
         }
 
-        /* Ultra Sharp CSS Configuration for Text Anti-Blur Mechanism */
+        /* Enhanced Dynamic High-Contrast Matrix Styling */
         #paper-img {
             display: block;
             width: 100vw;
@@ -173,15 +173,11 @@
             pointer-events: none;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             
-            /* Forces browser to preserve exact pixel contrast during deep zoom */
-            image-rendering: -moz-crisp-edges;         /* Firefox */
-            image-rendering: -o-crisp-edges;           /* Opera */
-            image-rendering: -webkit-optimize-contrast;/* Safari/Chrome */
-            image-rendering: crisp-edges;
-            image-rendering: pixelated;                 /* Advanced Browser Standardization */
+            /* Preserves smooth standard geometric rendering definitions */
+            image-rendering: auto;
             
-            /* Enhanced Text Contrast Enhancement Filter */
-            filter: contrast(1.08) brightness(1.02);
+            /* Perfectly balances edge pixels to achieve maximum text readability */
+            filter: grayscale(1) contrast(1.35) brightness(0.94);
         }
     </style>
 </head>
@@ -254,32 +250,13 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    // Create a virtual offscreen canvas image processor to force maximum quality
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        
-                        // Disable canvas interpolation to enforce razor sharp rendering quality
-                        ctx.imageSmoothingEnabled = false;
-                        ctx.mozImageSmoothingEnabled = false;
-                        ctx.webkitImageSmoothingEnabled = false;
-                        ctx.msImageSmoothingEnabled = false;
-                        
-                        ctx.drawImage(img, 0, 0, img.width, img.height);
-                        
-                        paperImg.src = canvas.toDataURL(file.type, 1.0); // Enforce full crisp compression ratio
-                        paperImg.style.display = 'block';
-                        
-                        scale = 1; pointX = 0; pointY = 0;
-                        updateTransform();
-                        resetTimerDisplay();
-                        if(isScrolling) stopAutoScroll();
-                    };
+                    paperImg.src = event.target.result;
+                    paperImg.style.display = 'block';
+                    
+                    scale = 1; pointX = 0; pointY = 0;
+                    updateTransform();
+                    resetTimerDisplay();
+                    if(isScrolling) stopAutoScroll();
                 }
                 reader.readAsDataURL(file);
             }
@@ -454,6 +431,13 @@
             timerDisplay.innerText = "00:00 Min";
             elapsedSeconds = 0;
         }
+
+        document.getElementById('viewer-container').addEventListener('click', (e) => {
+             if (e.target.id === 'viewer-container' && isScrolling) {
+                  showUIElements();
+                  resetUIHideTimer();
+             }
+        });
 
         function startAutoScroll() {
             if (scrollTimer) clearInterval(scrollTimer);
