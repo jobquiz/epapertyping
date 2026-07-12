@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>E-Paper Typer Assistant</title>
+    <title>Anti-Blur E-Paper Typer Assistant</title>
     <style>
         :root {
             --bg-main: #0f172a;
@@ -15,6 +15,7 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border: #334155;
+            --accent: #f59e0b;
         }
 
         body {
@@ -29,7 +30,7 @@
             overflow: hidden;
         }
 
-        /* Top Control Panel (Initial Layout State) */
+        /* Control Panel */
         #control-panel {
             background-color: var(--bg-panel);
             padding: 16px;
@@ -49,7 +50,6 @@
             opacity: 1;
         }
 
-        /* Shift full menu to the bottom once scrolling activates */
         #control-panel.scrolling-mode {
             top: auto;
             bottom: 0;
@@ -59,7 +59,6 @@
             transform: translateY(0);
         }
 
-        /* Dynamic Hiding towards the bottom when auto-scrolling */
         #control-panel.scrolling-mode.hidden {
             transform: translateY(100%);
             opacity: 0;
@@ -80,6 +79,19 @@
             font-size: 14px;
             color: var(--text-muted);
             font-weight: 500;
+        }
+
+        .timer-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 700;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
         input[type="number"] {
@@ -124,7 +136,7 @@
             background-color: var(--danger);
         }
 
-        /* Elegant Image Workspace Container */
+        /* Image Viewer Container */
         #viewer-container {
             flex-grow: 1;
             overflow: auto;
@@ -134,8 +146,13 @@
             background-color: #0b0f19;
             touch-action: none;
             box-sizing: border-box;
-            padding-top: 110px; /* Leave top space for setup menu initially */
+            padding-top: 110px;
             transition: padding 0.3s ease;
+            cursor: grab;
+        }
+
+        #viewer-container:active {
+            cursor: grabbing;
         }
 
         #image-wrapper {
@@ -148,18 +165,29 @@
             will-change: transform;
         }
 
+        /* Ultra Sharp CSS Configuration for Text Anti-Blur Mechanism */
         #paper-img {
             display: block;
             width: 100vw;
             height: auto;
             pointer-events: none;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            
+            /* Forces browser to preserve exact pixel contrast during deep zoom */
+            image-rendering: -moz-crisp-edges;         /* Firefox */
+            image-rendering: -o-crisp-edges;           /* Opera */
+            image-rendering: -webkit-optimize-contrast;/* Safari/Chrome */
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;                 /* Advanced Browser Standardization */
+            
+            /* Enhanced Text Contrast Enhancement Filter */
+            filter: contrast(1.08) brightness(1.02);
         }
     </style>
 </head>
 <body>
 
-    <!-- Top Dashboard Panel (Moves to bottom when scrolling) -->
+    <!-- Control Panel -->
     <div id="control-panel">
         <div class="row">
             <label class="file-upload">
@@ -175,6 +203,10 @@
             <div class="input-group">
                 <label>Distance (px):</label>
                 <input type="number" id="scroll-amount" min="10" max="500" value="80">
+            </div>
+
+            <div class="timer-group">
+                ⏱️ <span id="timer-display">00:00 Min</span>
             </div>
         </div>
         
@@ -199,10 +231,15 @@
         const btnToggle = document.getElementById('btn-toggle');
         const scrollIntervalInput = document.getElementById('scroll-interval');
         const scrollAmountInput = document.getElementById('scroll-amount');
+        const timerDisplay = document.getElementById('timer-display');
 
         let isScrolling = false;
         let scrollTimer = null;
         let UIHideTimeout = null;
+
+        let startTime = 0;
+        let elapsedSeconds = 0;
+        let clockTimer = null;
 
         let scale = 1;
         let pointX = 0;
@@ -217,11 +254,32 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    paperImg.src = event.target.result;
-                    paperImg.style.display = 'block';
-                    scale = 1; pointX = 0; pointY = 0;
-                    updateTransform();
-                    if(isScrolling) stopAutoScroll();
+                    // Create a virtual offscreen canvas image processor to force maximum quality
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        // Disable canvas interpolation to enforce razor sharp rendering quality
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.mozImageSmoothingEnabled = false;
+                        ctx.webkitImageSmoothingEnabled = false;
+                        ctx.msImageSmoothingEnabled = false;
+                        
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
+                        
+                        paperImg.src = canvas.toDataURL(file.type, 1.0); // Enforce full crisp compression ratio
+                        paperImg.style.display = 'block';
+                        
+                        scale = 1; pointX = 0; pointY = 0;
+                        updateTransform();
+                        resetTimerDisplay();
+                        if(isScrolling) stopAutoScroll();
+                    };
                 }
                 reader.readAsDataURL(file);
             }
@@ -242,14 +300,17 @@
             };
         }
 
-        // Touch Interaction Flow
-        viewerContainer.addEventListener('touchstart', (e) => {
-            const rect = viewerContainer.getBoundingClientRect();
-            
+        function handleInteractionEngagement() {
             if (isScrolling) {
                 showUIElements();
                 resetUIHideTimer();
             }
+        }
+
+        // --- Touch Engine Events ---
+        viewerContainer.addEventListener('touchstart', (e) => {
+            const rect = viewerContainer.getBoundingClientRect();
+            handleInteractionEngagement();
 
             if (e.touches.length === 1) {
                 isPanning = true;
@@ -258,10 +319,7 @@
                 isPanning = false;
                 initialDist = getDistance(e.touches[0], e.touches[1]);
                 const rawCenter = getCenter(e.touches[0], e.touches[1]);
-                centerPoint = {
-                    x: rawCenter.x - rect.left,
-                    y: rawCenter.y - rect.top
-                };
+                centerPoint = { x: rawCenter.x - rect.left, y: rawCenter.y - rect.top };
             }
         });
 
@@ -285,15 +343,47 @@
         });
 
         viewerContainer.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-                isPanning = false;
-            } else if (e.touches.length === 1) {
+            if (e.touches.length === 0) isPanning = false;
+            else if (e.touches.length === 1) {
                 isPanning = true;
                 start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
             }
         });
 
-        // Toggle UI Visibilities
+        // --- Mouse Engine Events ---
+        viewerContainer.addEventListener('mousedown', (e) => {
+            handleInteractionEngagement();
+            isPanning = true;
+            start = { x: e.clientX - pointX, y: e.clientY - pointY };
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            pointX = e.clientX - start.x;
+            pointY = e.clientY - start.y;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPanning = false;
+        });
+
+        viewerContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = viewerContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const zoomFactor = 1.1;
+            const newScale = e.deltaY < 0 ? Math.min(scale * zoomFactor, 6) : Math.max(scale / zoomFactor, 0.6);
+            
+            pointX = mouseX - (mouseX - pointX) * (newScale / scale);
+            pointY = mouseY - (mouseY - pointY) * (newScale / scale);
+            
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
         function hideUIElements() {
             if (!isScrolling) return;
             controlPanel.classList.add('hidden');
@@ -308,7 +398,63 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
-        // Auto Scroll Loop Logic
+        function playBeep(count) {
+            let index = 0;
+            function triggerNextBeep() {
+                if (index >= count) return;
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); 
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                
+                setTimeout(() => {
+                    oscillator.stop();
+                    audioCtx.close();
+                    index++;
+                    setTimeout(triggerNextBeep, 200); 
+                }, 150);
+            }
+            triggerNextBeep();
+        }
+
+        function startClock() {
+            resetTimerDisplay();
+            startTime = Date.now();
+            clockTimer = setInterval(() => {
+                elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsedSeconds / 60);
+                const seconds = elapsedSeconds % 60;
+                
+                timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} Min`;
+
+                if (seconds === 0 && minutes > 0) {
+                    if (minutes === 5) playBeep(1);
+                    else if (minutes === 10) playBeep(2);
+                    else if (minutes === 15) playBeep(3);
+                    else if (minutes === 20) playBeep(4);
+                    else if (minutes === 25) playBeep(5);
+                    else if (minutes === 30) playBeep(6);
+                }
+            }, 1000);
+        }
+
+        function stopClock() {
+            clearInterval(clockTimer);
+        }
+
+        function resetTimerDisplay() {
+            clearInterval(clockTimer);
+            timerDisplay.innerText = "00:00 Min";
+            elapsedSeconds = 0;
+        }
+
         function startAutoScroll() {
             if (scrollTimer) clearInterval(scrollTimer);
             const intervalTime = parseInt(scrollIntervalInput.value) * 1000; 
@@ -330,10 +476,12 @@
             }, intervalTime);
 
             resetUIHideTimer();
+            startClock(); 
         }
 
         function stopAutoScroll() {
             clearInterval(scrollTimer);
+            stopClock(); 
             if (UIHideTimeout) clearTimeout(UIHideTimeout);
             
             isScrolling = false;
@@ -359,12 +507,11 @@
                 if (document.fullscreenElement) document.exitFullscreen();
             } else {
                 isScrolling = true;
-                
                 viewerContainer.style.paddingTop = "0px";
                 viewerContainer.style.paddingBottom = "120px";
                 
                 controlPanel.classList.add('scrolling-mode');
-                controlPanel.classList.add('hidden'); // Initially hide until screen touch
+                controlPanel.classList.add('hidden'); 
                 
                 btnToggle.innerText = "⏸ Stop Scroll";
                 btnToggle.classList.add('scrolling');
