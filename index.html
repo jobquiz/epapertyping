@@ -66,54 +66,55 @@
             pointer-events: none;
         }
 
-        /* Responsive grid layout for mobile screens */
+        /* 2-Column Grid Layout for Mobile Screen Optimization */
         .row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
-            flex-wrap: nowrap; /* Ensures items stay in one horizontal line on mobile */
+            gap: 12px;
+            width: 100%;
         }
 
         .input-group {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 12px;
+            gap: 6px;
+            font-size: 13px;
             color: var(--text-muted);
             font-weight: 500;
-            white-space: nowrap;
         }
 
+        /* Styled Timer Box - Full Width Friendly */
         .timer-group {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 13px;
+            gap: 6px;
+            font-size: 14px;
             color: var(--accent);
             font-weight: 700;
             background: rgba(245, 158, 11, 0.15);
-            padding: 6px 10px;
+            padding: 6px 14px;
             border-radius: 6px;
             border: 1px solid rgba(245, 158, 11, 0.3);
-            white-space: nowrap;
+            min-width: 90px;
+            justify-content: center;
         }
 
         input[type="number"] {
-            width: 45px;
-            padding: 6px;
+            width: 60px;
+            padding: 6px 8px;
             border-radius: 6px;
             border: 1px solid var(--border);
             background: var(--bg-main);
             color: var(--text-main);
             text-align: center;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
         }
 
         button, .file-upload {
-            font-size: 13px;
-            padding: 10px 12px;
+            font-size: 14px;
+            padding: 10px 14px;
             border-radius: 8px;
             border: none;
             font-weight: 600;
@@ -123,19 +124,17 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            width: 100%;
         }
 
         .file-upload {
             background-color: var(--border);
             color: var(--text-main);
-            width: auto;
-            white-space: nowrap;
         }
 
         #btn-toggle {
             background-color: var(--success);
             color: white;
+            width: 100%;
         }
 
         #btn-toggle.scrolling {
@@ -152,7 +151,7 @@
             background-color: #0b0f19;
             touch-action: none;
             box-sizing: border-box;
-            padding-top: 110px;
+            padding-top: 155px; /* Adjusted padding for two-row header height */
             transition: padding 0.3s ease;
             cursor: grab;
         }
@@ -186,27 +185,32 @@
 
     <!-- Control Panel Dashboard -->
     <div id="control-panel">
+        <!-- Row 1: Upload and Timer only to give maximize space -->
         <div class="row">
             <label class="file-upload">
-                📁 Upload
+                📁 Upload Image
                 <input type="file" id="file-input" accept="image/*" style="display: none;">
             </label>
             
-            <div class="input-group">
-                <label>Int(s):</label>
-                <input type="number" id="scroll-interval" min="1" max="300" value="30">
-            </div>
-
-            <div class="input-group">
-                <label>Dist(px):</label>
-                <input type="number" id="scroll-amount" min="10" max="500" value="80">
-            </div>
-
             <div class="timer-group">
                 ⏱️ <span id="timer-display">00:00</span>
             </div>
         </div>
         
+        <!-- Row 2: Settings Controls -->
+        <div class="row">
+            <div class="input-group">
+                <label>Interval (s):</label>
+                <input type="number" id="scroll-interval" min="1" max="300" value="30">
+            </div>
+
+            <div class="input-group">
+                <label>Distance (px):</label>
+                <input type="number" id="scroll-amount" min="10" max="500" value="80">
+            </div>
+        </div>
+        
+        <!-- Row 3: Action Button -->
         <div class="row">
             <button id="btn-toggle">▶ Start Auto Scroll</button>
         </div>
@@ -234,7 +238,6 @@
         let scrollTimer = null;
         let UIHideTimeout = null;
 
-        // High Precision Mobile-Safe Timer Configuration
         let startTime = 0;
         let elapsedSeconds = 0;
         let clockTimer = null;
@@ -285,7 +288,7 @@
             }
         }
 
-        // --- Touch Engine Events ---
+        // Touch Triggers
         viewerContainer.addEventListener('touchstart', (e) => {
             const rect = viewerContainer.getBoundingClientRect();
             handleInteractionEngagement();
@@ -328,7 +331,7 @@
             }
         });
 
-        // --- Mouse Engine Events ---
+        // Mouse Triggers
         viewerContainer.addEventListener('mousedown', (e) => {
             handleInteractionEngagement();
             isPanning = true;
@@ -376,7 +379,6 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
-        // High Stability Mobile Audio Context Generator
         function playBeep(count) {
             let index = 0;
             function triggerNextBeep() {
@@ -403,7 +405,6 @@
             triggerNextBeep();
         }
 
-        // Mobile Background Optimization Timer Engine
         function startClock() {
             resetTimerDisplay();
             startTime = Date.now();
@@ -434,6 +435,13 @@
             timerDisplay.innerText = "00:00";
             elapsedSeconds = 0;
         }
+
+        document.getElementById('viewer-container').addEventListener('click', (e) => {
+             if (e.target.id === 'viewer-container' && isScrolling) {
+                  showUIElements();
+                  resetUIHideTimer();
+             }
+        });
 
         function startAutoScroll() {
             if (scrollTimer) clearInterval(scrollTimer);
@@ -471,7 +479,7 @@
             btnToggle.classList.remove('scrolling');
             btnToggle.innerText = "▶ Start Auto Scroll";
             
-            viewerContainer.style.paddingTop = "110px";
+            viewerContainer.style.paddingTop = "155px";
             viewerContainer.style.paddingBottom = "0px";
         }
 
@@ -488,7 +496,7 @@
             } else {
                 isScrolling = true;
                 viewerContainer.style.paddingTop = "0px";
-                viewerContainer.style.paddingBottom = "120px";
+                viewerContainer.style.paddingBottom = "165px";
                 
                 controlPanel.classList.add('scrolling-mode');
                 controlPanel.classList.add('hidden'); 
