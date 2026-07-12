@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>E-Paper Typer Assistant</title>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-panel: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Control Panel (Initial Layout State) */
+        #control-panel {
+            background-color: var(--bg-panel);
+            padding: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Shift full menu to the bottom once scrolling activates */
+        #control-panel.scrolling-mode {
+            top: auto;
+            bottom: 0;
+            border-bottom: none;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: translateY(0);
+        }
+
+        /* Dynamic Hiding towards the bottom when auto-scrolling */
+        #control-panel.scrolling-mode.hidden {
+            transform: translateY(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input[type="number"] {
+            width: 55px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-main);
+            color: var(--text-main);
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        button, .file-upload {
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+
+        .file-upload {
+            background-color: var(--border);
+            color: var(--text-main);
+            width: auto;
+        }
+
+        #btn-toggle {
+            background-color: var(--success);
+            color: white;
+        }
+
+        #btn-toggle.scrolling {
+            background-color: var(--danger);
+        }
+
+        /* Elegant Image Workspace Container */
+        #viewer-container {
+            flex-grow: 1;
+            overflow: auto;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #0b0f19;
+            touch-action: none;
+            box-sizing: border-box;
+            padding-top: 110px; /* Leave top space for setup menu initially */
+            transition: padding 0.3s ease;
+        }
+
+        #image-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            display: inline-block;
+            padding-bottom: 70vh; 
+            will-change: transform;
+        }
+
+        #paper-img {
+            display: block;
+            width: 100vw;
+            height: auto;
+            pointer-events: none;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Dashboard Panel (Moves to bottom when scrolling) -->
+    <div id="control-panel">
+        <div class="row">
+            <label class="file-upload">
+                📁 Upload Image
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+            </label>
+            
+            <div class="input-group">
+                <label>Interval (s):</label>
+                <input type="number" id="scroll-interval" min="1" max="300" value="30">
+            </div>
+
+            <div class="input-group">
+                <label>Distance (px):</label>
+                <input type="number" id="scroll-amount" min="10" max="500" value="80">
+            </div>
+        </div>
+        
+        <div class="row">
+            <button id="btn-toggle">▶ Start Auto Scroll</button>
+        </div>
+    </div>
+
+    <!-- Main Dynamic Viewer Area -->
+    <div id="viewer-container">
+        <div id="image-wrapper">
+            <img id="paper-img" src="" alt="E-Paper View" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const paperImg = document.getElementById('paper-img');
+        const imageWrapper = document.getElementById('image-wrapper');
+        const viewerContainer = document.getElementById('viewer-container');
+        const controlPanel = document.getElementById('control-panel');
+        const btnToggle = document.getElementById('btn-toggle');
+        const scrollIntervalInput = document.getElementById('scroll-interval');
+        const scrollAmountInput = document.getElementById('scroll-amount');
+
+        let isScrolling = false;
+        let scrollTimer = null;
+        let UIHideTimeout = null;
+
+        let scale = 1;
+        let pointX = 0;
+        let pointY = 0;
+        let start = { x: 0, y: 0 };
+        let isPanning = false;
+        let initialDist = 0;
+        let centerPoint = { x: 0, y: 0 };
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    paperImg.src = event.target.result;
+                    paperImg.style.display = 'block';
+                    scale = 1; pointX = 0; pointY = 0;
+                    updateTransform();
+                    if(isScrolling) stopAutoScroll();
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function updateTransform() {
+            imageWrapper.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+
+        function getDistance(t1, t2) {
+            return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        }
+
+        function getCenter(t1, t2) {
+            return {
+                x: (t1.clientX + t2.clientX) / 2,
+                y: (t1.clientY + t2.clientY) / 2
+            };
+        }
+
+        // Touch Interaction Flow
+        viewerContainer.addEventListener('touchstart', (e) => {
+            const rect = viewerContainer.getBoundingClientRect();
+            
+            if (isScrolling) {
+                showUIElements();
+                resetUIHideTimer();
+            }
+
+            if (e.touches.length === 1) {
+                isPanning = true;
+                start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                initialDist = getDistance(e.touches[0], e.touches[1]);
+                const rawCenter = getCenter(e.touches[0], e.touches[1]);
+                centerPoint = {
+                    x: rawCenter.x - rect.left,
+                    y: rawCenter.y - rect.top
+                };
+            }
+        });
+
+        viewerContainer.addEventListener('touchmove', (e) => {
+            if (isPanning && e.touches.length === 1) {
+                pointX = e.touches[0].clientX - start.x;
+                pointY = e.touches[0].clientY - start.y;
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                const dist = getDistance(e.touches[0], e.touches[1]);
+                const factor = dist / initialDist;
+                const newScale = Math.min(Math.max(0.6, scale * factor), 6);
+                
+                pointX = centerPoint.x - (centerPoint.x - pointX) * (newScale / scale);
+                pointY = centerPoint.y - (centerPoint.y - pointY) * (newScale / scale);
+                
+                scale = newScale;
+                initialDist = dist;
+                updateTransform();
+            }
+        });
+
+        viewerContainer.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                isPanning = false;
+            } else if (e.touches.length === 1) {
+                isPanning = true;
+                start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
+            }
+        });
+
+        // Toggle UI Visibilities
+        function hideUIElements() {
+            if (!isScrolling) return;
+            controlPanel.classList.add('hidden');
+        }
+
+        function showUIElements() {
+            controlPanel.classList.remove('hidden');
+        }
+
+        function resetUIHideTimer() {
+            if (UIHideTimeout) clearTimeout(UIHideTimeout);
+            UIHideTimeout = setTimeout(hideUIElements, 5000); 
+        }
+
+        // Auto Scroll Loop Logic
+        function startAutoScroll() {
+            if (scrollTimer) clearInterval(scrollTimer);
+            const intervalTime = parseInt(scrollIntervalInput.value) * 1000; 
+            
+            scrollTimer = setInterval(() => {
+                const amount = parseInt(scrollAmountInput.value);
+                const wrapperHeight = imageWrapper.offsetHeight * scale;
+                const containerHeight = viewerContainer.offsetHeight;
+                
+                if (Math.abs(pointY) >= (wrapperHeight - containerHeight)) {
+                    clearInterval(scrollTimer);
+                    stopAutoScroll();
+                } else {
+                    pointY -= amount; 
+                    imageWrapper.style.transition = "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)"; 
+                    updateTransform();
+                    setTimeout(() => { imageWrapper.style.transition = "none"; }, 500);
+                }
+            }, intervalTime);
+
+            resetUIHideTimer();
+        }
+
+        function stopAutoScroll() {
+            clearInterval(scrollTimer);
+            if (UIHideTimeout) clearTimeout(UIHideTimeout);
+            
+            isScrolling = false;
+            controlPanel.classList.remove('scrolling-mode');
+            controlPanel.classList.remove('hidden');
+            
+            btnToggle.classList.remove('scrolling');
+            btnToggle.innerText = "▶ Start Auto Scroll";
+            
+            viewerContainer.style.paddingTop = "110px";
+            viewerContainer.style.paddingBottom = "0px";
+        }
+
+        btnToggle.addEventListener('click', (e) => {
+            if (!paperImg.src || paperImg.style.display === 'none') {
+                alert('Please upload an E-Paper image first!');
+                return;
+            }
+            e.stopPropagation();
+
+            if (isScrolling) {
+                stopAutoScroll();
+                if (document.fullscreenElement) document.exitFullscreen();
+            } else {
+                isScrolling = true;
+                
+                viewerContainer.style.paddingTop = "0px";
+                viewerContainer.style.paddingBottom = "120px";
+                
+                controlPanel.classList.add('scrolling-mode');
+                controlPanel.classList.add('hidden'); // Initially hide until screen touch
+                
+                btnToggle.innerText = "⏸ Stop Scroll";
+                btnToggle.classList.add('scrolling');
+
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                }
+                
+                startAutoScroll();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isScrolling) {
+                stopAutoScroll();
+            }
+        });
+
+        scrollIntervalInput.addEventListener('change', () => {
+            if (isScrolling) startAutoScroll();
+        });
+    </script>
+</body>
+</html>
