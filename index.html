@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>High-Contrast E-Paper Typer Assistant</title>
+    <title>Ultimate E-Paper Typer Assistant</title>
     <style>
         :root {
             --bg-main: #0f172a;
@@ -30,15 +30,15 @@
             overflow: hidden;
         }
 
-        /* Control Panel */
+        /* Responsive Control Panel Dashboard */
         #control-panel {
             background-color: var(--bg-panel);
-            padding: 16px;
+            padding: 12px 16px;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             border-bottom: 1px solid var(--border);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
             position: absolute;
@@ -50,6 +50,7 @@
             opacity: 1;
         }
 
+        /* Shift menu to the bottom during active auto-scroll */
         #control-panel.scrolling-mode {
             top: auto;
             bottom: 0;
@@ -65,50 +66,54 @@
             pointer-events: none;
         }
 
+        /* Responsive grid layout for mobile screens */
         .row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 8px;
+            flex-wrap: nowrap; /* Ensures items stay in one horizontal line on mobile */
         }
 
         .input-group {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 14px;
+            gap: 4px;
+            font-size: 12px;
             color: var(--text-muted);
             font-weight: 500;
+            white-space: nowrap;
         }
 
         .timer-group {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 14px;
+            gap: 4px;
+            font-size: 13px;
             color: var(--accent);
             font-weight: 700;
-            background: rgba(245, 158, 11, 0.1);
-            padding: 8px 12px;
+            background: rgba(245, 158, 11, 0.15);
+            padding: 6px 10px;
             border-radius: 6px;
             border: 1px solid rgba(245, 158, 11, 0.3);
+            white-space: nowrap;
         }
 
         input[type="number"] {
-            width: 55px;
-            padding: 8px;
+            width: 45px;
+            padding: 6px;
             border-radius: 6px;
             border: 1px solid var(--border);
             background: var(--bg-main);
             color: var(--text-main);
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
         }
 
         button, .file-upload {
-            font-size: 14px;
-            padding: 10px 16px;
+            font-size: 13px;
+            padding: 10px 12px;
             border-radius: 8px;
             border: none;
             font-weight: 600;
@@ -125,6 +130,7 @@
             background-color: var(--border);
             color: var(--text-main);
             width: auto;
+            white-space: nowrap;
         }
 
         #btn-toggle {
@@ -165,44 +171,39 @@
             will-change: transform;
         }
 
-        /* Enhanced Dynamic High-Contrast Matrix Styling */
         #paper-img {
             display: block;
             width: 100vw;
             height: auto;
             pointer-events: none;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            
-            /* Preserves smooth standard geometric rendering definitions */
             image-rendering: auto;
-            
-            /* Perfectly balances edge pixels to achieve maximum text readability */
             filter: grayscale(1) contrast(1.35) brightness(0.94);
         }
     </style>
 </head>
 <body>
 
-    <!-- Control Panel -->
+    <!-- Control Panel Dashboard -->
     <div id="control-panel">
         <div class="row">
             <label class="file-upload">
-                📁 Upload Image
+                📁 Upload
                 <input type="file" id="file-input" accept="image/*" style="display: none;">
             </label>
             
             <div class="input-group">
-                <label>Interval (s):</label>
+                <label>Int(s):</label>
                 <input type="number" id="scroll-interval" min="1" max="300" value="30">
             </div>
 
             <div class="input-group">
-                <label>Distance (px):</label>
+                <label>Dist(px):</label>
                 <input type="number" id="scroll-amount" min="10" max="500" value="80">
             </div>
 
             <div class="timer-group">
-                ⏱️ <span id="timer-display">00:00 Min</span>
+                ⏱️ <span id="timer-display">00:00</span>
             </div>
         </div>
         
@@ -233,6 +234,7 @@
         let scrollTimer = null;
         let UIHideTimeout = null;
 
+        // High Precision Mobile-Safe Timer Configuration
         let startTime = 0;
         let elapsedSeconds = 0;
         let clockTimer = null;
@@ -252,7 +254,6 @@
                 reader.onload = function(event) {
                     paperImg.src = event.target.result;
                     paperImg.style.display = 'block';
-                    
                     scale = 1; pointX = 0; pointY = 0;
                     updateTransform();
                     resetTimerDisplay();
@@ -375,6 +376,7 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
+        // High Stability Mobile Audio Context Generator
         function playBeep(count) {
             let index = 0;
             function triggerNextBeep() {
@@ -384,8 +386,8 @@
                 const gainNode = audioCtx.createGain();
 
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
-                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); 
+                oscillator.frequency.setValueAtTime(860, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); 
 
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
@@ -395,12 +397,13 @@
                     oscillator.stop();
                     audioCtx.close();
                     index++;
-                    setTimeout(triggerNextBeep, 200); 
-                }, 150);
+                    setTimeout(triggerNextBeep, 180); 
+                }, 120);
             }
             triggerNextBeep();
         }
 
+        // Mobile Background Optimization Timer Engine
         function startClock() {
             resetTimerDisplay();
             startTime = Date.now();
@@ -409,7 +412,7 @@
                 const minutes = Math.floor(elapsedSeconds / 60);
                 const seconds = elapsedSeconds % 60;
                 
-                timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} Min`;
+                timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
                 if (seconds === 0 && minutes > 0) {
                     if (minutes === 5) playBeep(1);
@@ -428,16 +431,9 @@
 
         function resetTimerDisplay() {
             clearInterval(clockTimer);
-            timerDisplay.innerText = "00:00 Min";
+            timerDisplay.innerText = "00:00";
             elapsedSeconds = 0;
         }
-
-        document.getElementById('viewer-container').addEventListener('click', (e) => {
-             if (e.target.id === 'viewer-container' && isScrolling) {
-                  showUIElements();
-                  resetUIHideTimer();
-             }
-        });
 
         function startAutoScroll() {
             if (scrollTimer) clearInterval(scrollTimer);
