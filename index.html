@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate E-Paper Typer Assistant</title>
+    
+    <!-- Mobile Standalone Web App Meta Tags for Offline Installation -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <style>
         :root {
             --bg-main: #0f172a;
@@ -383,8 +389,8 @@
                 if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
                 
                 const now = globalAudioCtx.currentTime;
-                const beepDuration = 0.12; // 120ms beep
-                const beepGap = 0.18;      // 180ms silence gap
+                const beepDuration = 0.12; 
+                const beepGap = 0.18;      
 
                 for (let i = 0; i < count; i++) {
                     const startTime = now + (i * (beepDuration + beepGap));
@@ -409,9 +415,9 @@
             if ('vibrate' in navigator) {
                 let vPattern = [];
                 for (let i = 0; i < count; i++) {
-                    vPattern.push(300); // 300ms vibration
+                    vPattern.push(300); 
                     if (i < count - 1) {
-                        vPattern.push(200); // 200ms pause gap
+                        vPattern.push(200); 
                     }
                 }
                 navigator.vibrate(vPattern);
