@@ -12,7 +12,7 @@
     <meta name="theme-color" content="#0f172a">
 
     <!-- Inline PWA Manifest Web Standard -->
-    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22E-Paper%20Typer%20Assistant%22%2C%22short_name%22%3A%22Typer%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20512%20512%27%3E%3Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%2715%25%27%20fill%3D%27%231e293b%27%2F%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2760%25%27%20font-size%3D%27200%27%20font-family%3D%27sans-serif%27%20font-weight%3D%27bold%27%20fill%3D%27%233b82f6%27%20text-anchor%3D%27middle%27%3ET%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22E-Paper%20Typer%20Assistant%22%2C%22short_name%22%3A%22Typer%22%2C%22start_url%22%3A%22.%2Findex.html%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20512%20512%27%3E%3Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%2715%25%27%20fill%3D%27%231e293b%27%2F%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2760%25%27%20font-size%3D%27200%27%20font-family%3D%27sans-serif%27%20font-weight%3D%27bold%27%20fill%3D%27%233b82f6%27%20text-anchor%3D%27middle%27%3ET%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
     
     <style>
         :root {
@@ -40,7 +40,6 @@
             overflow: hidden;
         }
 
-        /* Responsive Control Panel Dashboard */
         #control-panel {
             background-color: var(--bg-panel);
             padding: 12px 16px;
@@ -148,7 +147,6 @@
             background-color: var(--danger);
         }
 
-        /* Image Viewer Container */
         #viewer-container {
             flex-grow: 1;
             overflow: auto;
@@ -228,25 +226,12 @@
     </div>
 
     <script>
-        // --- ⚙️ DYNAMIC EMBEDDED SERVICE WORKER FOR 100% OFFLINE SUPPORT ⚙️ ---
+        // --- ⚙️ STANDARD SECURE SERVICE WORKER REGISTRATION ⚙️ ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'epaper-typer-v1';
-                    self.addEventListener('install', (e) => {
-                        e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll([location.href])));
-                        self.skipWaiting();
-                    });
-                    self.addEventListener('activate', (e) => {
-                        e.waitUntil(clients.claim());
-                    });
-                    self.addEventListener('fetch', (e) => {
-                        e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
-                    });
-                `;
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW Registration failed', err));
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Offline Engine Active Successfully!'))
+                .catch(err => console.log('SW Registration failed', err));
             });
         }
 
@@ -398,6 +383,13 @@
             controlPanel.classList.add('hidden');
         }
 
+        document.getElementById('viewer-container').addEventListener('click', (e) => {
+             if (e.target.id === 'viewer-container' && isScrolling) {
+                  showUIElements();
+                  resetUIHideTimer();
+             }
+        });
+
         function showUIElements() {
             controlPanel.classList.remove('hidden');
         }
@@ -476,13 +468,6 @@
             timerDisplay.innerText = "00:00";
             elapsedSeconds = 0;
         }
-
-        document.getElementById('viewer-container').addEventListener('click', (e) => {
-             if (e.target.id === 'viewer-container' && isScrolling) {
-                  showUIElements();
-                  resetUIHideTimer();
-             }
-        });
 
         function startAutoScroll() {
             if (scrollTimer) clearInterval(scrollTimer);
