@@ -376,9 +376,9 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
-        // Combined Sound Beep & Pattern Vibration Engine
+        // Isolated Audio and Vibration Engine (Sync Loop Fix)
         function triggerTimeAlert(count) {
-            // 1. Play Audio Beep Loop (Ensuring exact count matching the interval rules)
+            // 1. Play Isolated Audio Beep Engine
             if (globalAudioCtx) {
                 if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
                 
@@ -390,7 +390,7 @@
 
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(880, globalAudioCtx.currentTime); 
-                    gainNode.gain.setValueAtTime(0.25, globalAudioCtx.currentTime); 
+                    gainNode.gain.setValueAtTime(0.3, globalAudioCtx.currentTime); // Sound volume optimized
 
                     oscillator.connect(gainNode);
                     gainNode.connect(globalAudioCtx.destination);
@@ -405,13 +405,13 @@
                 runBeepLoop();
             }
 
-            // 2. Mobile Vibrate Engine
+            // 2. Mobile Vibrate Engine (Runs independently without crashing audio contexts)
             if ('vibrate' in navigator) {
                 let vPattern = [];
                 for (let i = 0; i < count; i++) {
-                    vPattern.push(300); // Vibrate for 300ms
+                    vPattern.push(300); // 300ms vibration
                     if (i < count - 1) {
-                        vPattern.push(200); // Pause for 200ms
+                        vPattern.push(200); // 200ms pause gap
                     }
                 }
                 navigator.vibrate(vPattern);
@@ -428,7 +428,7 @@
                 
                 timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-                // Process Custom Incremental Alerts at exactly 00 seconds
+                // Absolute Exact Matching Logic for Sequential Repeats
                 if (seconds === 0 && minutes > 0) {
                     if (minutes === 5) triggerTimeAlert(1);
                     else if (minutes === 10) triggerTimeAlert(2);
