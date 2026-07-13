@@ -378,7 +378,7 @@
 
         // Combined Sound Beep & Pattern Vibration Engine
         function triggerTimeAlert(count) {
-            // 1. Play Audio Beep (Will play if sound profile is active)
+            // 1. Play Audio Beep Loop (Ensuring exact count matching the interval rules)
             if (globalAudioCtx) {
                 if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
                 
@@ -405,13 +405,13 @@
                 runBeepLoop();
             }
 
-            // 2. Mobile Vibrate Engine (Works seamlessly even if phone is on Vibrate/Silent mode)
+            // 2. Mobile Vibrate Engine
             if ('vibrate' in navigator) {
                 let vPattern = [];
                 for (let i = 0; i < count; i++) {
                     vPattern.push(300); // Vibrate for 300ms
                     if (i < count - 1) {
-                        vPattern.push(200); // Pause for 200ms between multiple vibrations
+                        vPattern.push(200); // Pause for 200ms
                     }
                 }
                 navigator.vibrate(vPattern);
@@ -428,7 +428,7 @@
                 
                 timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-                // Process Alerts at exactly 00 seconds
+                // Process Custom Incremental Alerts at exactly 00 seconds
                 if (seconds === 0 && minutes > 0) {
                     if (minutes === 5) triggerTimeAlert(1);
                     else if (minutes === 10) triggerTimeAlert(2);
