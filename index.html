@@ -40,7 +40,7 @@
             overflow: hidden;
         }
 
-        /* Control Panel */
+        /* Fixed Fixed Height Control Dashboard */
         #control-panel {
             background-color: var(--bg-panel);
             padding: 12px 16px;
@@ -50,23 +50,23 @@
             flex-direction: column;
             gap: 10px;
             border-bottom: 1px solid var(--border);
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             box-sizing: border-box;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
             transform: translateY(0);
             opacity: 1;
         }
 
+        /* Safe Bottom Pin Architecture without replication hooks */
         #control-panel.scrolling-mode {
             top: auto;
             bottom: 0;
             border-bottom: none;
             border-top: 1px solid var(--border);
             box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.3);
-            transform: translateY(0);
         }
 
         #control-panel.scrolling-mode.hidden {
@@ -148,6 +148,7 @@
             background-color: var(--success);
             color: white;
             flex: 1;
+            width: 100%;
         }
 
         #btn-toggle.scrolling {
@@ -160,22 +161,19 @@
             flex: 1;
             display: none; 
         }
-        
-        #btn-resume:hover {
-            background-color: var(--primary-hover);
-        }
 
+        /* Viewer Layout Initialization */
         #viewer-container {
-            flex-grow: 1;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
             overflow: auto;
-            position: relative;
-            width: 100%;
-            height: 100%;
             background-color: #0b0f19;
             touch-action: none;
             box-sizing: border-box;
-            padding-top: 155px; 
-            transition: padding 0.3s ease;
+            padding-top: 155px; /* Default padded ceiling space for panel height */
             cursor: grab;
         }
 
@@ -189,7 +187,7 @@
             left: 0;
             transform-origin: 0 0;
             display: inline-block;
-            padding-bottom: 70vh; 
+            padding-bottom: 80vh; 
             will-change: transform;
         }
 
@@ -287,7 +285,6 @@
         let initialDist = 0;
         let centerPoint = { x: 0, y: 0 };
 
-        // Precision Drag Tracking Coordinates
         let touchStartPos = { x: 0, y: 0 };
         let isDragActive = false;
 
@@ -333,7 +330,7 @@
                 touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             } else if (e.touches.length === 2) {
                 isPanning = false;
-                isDragActive = true; // Pinch zoom counts as drag layout movement
+                isDragActive = true; 
                 initialDist = getDistance(e.touches[0], e.touches[1]);
                 const rawCenter = getCenter(e.touches[0], e.touches[1]);
                 centerPoint = { x: rawCenter.x - rect.left, y: rawCenter.y - rect.top };
@@ -342,8 +339,7 @@
 
         viewerContainer.addEventListener('touchmove', (e) => {
             if (isPanning && e.touches.length === 1) {
-                // If moved more than 6px, flag it as a swipe/drag action, not a click tap
-                if (Math.hypot(e.touches[0].clientX - touchStartPos.x, e.touches[0].clientY - touchStartPos.y) > 6) {
+                if (Math.hypot(e.touches[0].clientX - touchStartPos.x, e.touches[0].clientY - touchStartPos.y) > 8) {
                     isDragActive = true;
                 }
                 pointX = e.touches[0].clientX - start.x;
@@ -381,7 +377,7 @@
 
         window.addEventListener('mousemove', (e) => {
             if (!isPanning) return;
-            if (Math.hypot(e.clientX - touchStartPos.x, e.clientY - touchStartPos.y) > 6) {
+            if (Math.hypot(e.clientX - touchStartPos.x, e.clientY - touchStartPos.y) > 8) {
                 isDragActive = true;
             }
             pointX = e.clientX - start.x;
@@ -409,11 +405,9 @@
             updateTransform();
         }, { passive: false });
 
-        // --- Isolated Precise Single Tap Click Filter ---
+        // --- Precise Single Tap Click Pause Trigger ---
         viewerContainer.addEventListener('click', (e) => {
-            // Cancel trigger if the user was scrolling or dragging the document viewport
             if (isDragActive) return;
-
             if (isScrolling && !isPaused) {
                 pauseAutoScroll();
             }
@@ -530,7 +524,7 @@
             startClock(pausedTimeElapsed); 
         }
 
-        // --- Pause Function Engine ---
+        // --- Pause Logic Fix ---
         function pauseAutoScroll() {
             clearInterval(scrollTimer);
             stopClock();
@@ -540,17 +534,19 @@
             pausedTimeElapsed = elapsedSeconds; 
 
             showUIElements();
-            btnToggle.innerText = "⏸ Stop Scroll"; 
+            btnToggle.innerText = "Status: Paused"; 
+            btnToggle.style.backgroundColor = "var(--border)";
             btnResume.style.display = "inline-flex"; 
         }
 
-        // --- Resume Function Engine ---
+        // --- Resume Logic Fix ---
         function resumeAutoScroll() {
             isPaused = false;
             btnResume.style.display = "none";
             btnToggle.innerText = "⏸ Stop Scroll";
+            btnToggle.style.backgroundColor = "var(--danger)";
             
-            controlPanel.classList.add('hidden'); // Re-hide top panel automatically upon resume
+            resetUIHideTimer();
             startAutoScroll(); 
         }
 
@@ -567,11 +563,11 @@
             controlPanel.classList.remove('hidden');
             
             btnToggle.classList.remove('scrolling');
+            btnToggle.style.backgroundColor = "var(--success)";
             btnToggle.innerText = "▶ Start Auto Scroll";
             btnResume.style.display = "none";
             
             viewerContainer.style.paddingTop = "155px";
-            viewerContainer.style.paddingBottom = "0px";
         }
 
         btnToggle.addEventListener('click', (e) => {
@@ -597,12 +593,11 @@
                 pausedTimeElapsed = 0;
                 
                 viewerContainer.style.paddingTop = "0px";
-                viewerContainer.style.paddingBottom = "165px";
-                
                 controlPanel.classList.add('scrolling-mode');
                 controlPanel.classList.add('hidden'); 
                 
                 btnToggle.innerText = "⏸ Stop Scroll";
+                btnToggle.style.backgroundColor = "var(--danger)";
                 btnToggle.classList.add('scrolling');
 
                 if (document.documentElement.requestFullscreen) {
