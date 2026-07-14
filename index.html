@@ -40,6 +40,7 @@
             overflow: hidden;
         }
 
+        /* Responsive Control Panel Dashboard */
         #control-panel {
             background-color: var(--bg-panel);
             padding: 12px 16px;
@@ -79,6 +80,12 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            width: 100%;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 8px;
             width: 100%;
         }
 
@@ -140,11 +147,22 @@
         #btn-toggle {
             background-color: var(--success);
             color: white;
-            width: 100%;
+            flex: 1;
         }
 
         #btn-toggle.scrolling {
             background-color: var(--danger);
+        }
+
+        #btn-resume {
+            background-color: var(--primary);
+            color: white;
+            flex: 1;
+            display: none; /* Hidden by default, only shows when paused */
+        }
+        
+        #btn-resume:hover {
+            background-color: var(--primary-hover);
         }
 
         #viewer-container {
@@ -214,7 +232,10 @@
         </div>
         
         <div class="row">
-            <button id="btn-toggle">▶ Start Auto Scroll</button>
+            <div class="button-container">
+                <button id="btn-toggle">▶ Start Auto Scroll</button>
+                <button id="btn-resume">▶ Resume</button>
+            </div>
         </div>
     </div>
 
@@ -241,17 +262,20 @@
         const viewerContainer = document.getElementById('viewer-container');
         const controlPanel = document.getElementById('control-panel');
         const btnToggle = document.getElementById('btn-toggle');
+        const btnResume = document.getElementById('btn-resume');
         const scrollIntervalInput = document.getElementById('scroll-interval');
         const scrollAmountInput = document.getElementById('scroll-amount');
         const timerDisplay = document.getElementById('timer-display');
 
         let isScrolling = false;
+        let isPaused = false;
         let scrollTimer = null;
         let UIHideTimeout = null;
 
         let startTime = 0;
         let elapsedSeconds = 0;
         let clockTimer = null;
+        let pausedTimeElapsed = 0; // Tracks elapsed time before pause
 
         let globalAudioCtx = null;
 
@@ -262,6 +286,7 @@
         let isPanning = false;
         let initialDist = 0;
         let centerPoint = { x: 0, y: 0 };
+        let hasMoved = false; // Tracks drag vs tap behavior
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -273,7 +298,7 @@
                     scale = 1; pointX = 0; pointY = 0;
                     updateTransform();
                     resetTimerDisplay();
-                    if(isScrolling) stopAutoScroll();
+                    if(isScrolling || isPaused) stopAutoScroll();
                 }
                 reader.readAsDataURL(file);
             }
@@ -294,17 +319,10 @@
             };
         }
 
-        function handleInteractionEngagement() {
-            if (isScrolling) {
-                showUIElements();
-                resetUIHideTimer();
-            }
-        }
-
         // --- Touch Engine Events ---
         viewerContainer.addEventListener('touchstart', (e) => {
             const rect = viewerContainer.getBoundingClientRect();
-            handleInteractionEngagement();
+            hasMoved = false;
 
             if (e.touches.length === 1) {
                 isPanning = true;
@@ -318,6 +336,7 @@
         });
 
         viewerContainer.addEventListener('touchmove', (e) => {
+            hasMoved = true;
             if (isPanning && e.touches.length === 1) {
                 pointX = e.touches[0].clientX - start.x;
                 pointY = e.touches[0].clientY - start.y;
@@ -346,13 +365,14 @@
 
         // --- Mouse Engine Events ---
         viewerContainer.addEventListener('mousedown', (e) => {
-            handleInteractionEngagement();
+            hasMoved = false;
             isPanning = true;
             start = { x: e.clientX - pointX, y: e.clientY - pointY };
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!isPanning) return;
+            hasMoved = true;
             pointX = e.clientX - start.x;
             pointY = e.clientY - start.y;
             updateTransform();
@@ -378,17 +398,21 @@
             updateTransform();
         }, { passive: false });
 
-        function hideUIElements() {
-            if (!isScrolling) return;
-            controlPanel.classList.add('hidden');
-        }
+        // --- Smart Screen Tap Logic for Pause Mechanism ---
+        viewerContainer.addEventListener('click', (e) => {
+            // Only trigger pause if it's a genuine click/tap on the viewer container area, not a drag/pan action
+            if (hasMoved) return;
 
-        document.getElementById('viewer-container').addEventListener('click', (e) => {
-             if (e.target.id === 'viewer-container' && isScrolling) {
-                  showUIElements();
-                  resetUIHideTimer();
-             }
+            if (isScrolling && !isPaused) {
+                pauseAutoScroll();
+            }
         });
+
+        function hideUIElements() {
+            if (isScrolling && !isPaused) {
+                controlPanel.classList.add('hidden');
+            }
+        }
 
         function showUIElements() {
             controlPanel.classList.remove('hidden');
@@ -399,6 +423,7 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
+        // Hardware Timeline Alerts Engine
         function triggerTimeAlert(count) {
             if (globalAudioCtx) {
                 if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
@@ -412,14 +437,14 @@
                     const stopTime = startTime + beepDuration;
 
                     const oscillator = globalAudioCtx.createOscillator();
-                    const gainNode = globalAudioCtx.createGain();
+                    const BlackGain = globalAudioCtx.createGain();
 
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(880, startTime); 
-                    gainNode.gain.setValueAtTime(0.3, startTime); 
+                    BlackGain.gain.setValueAtTime(0.3, startTime); 
 
-                    oscillator.connect(gainNode);
-                    gainNode.connect(globalAudioCtx.destination);
+                    oscillator.connect(BlackGain);
+                    BlackGain.connect(globalAudioCtx.destination);
                     
                     oscillator.start(startTime);
                     oscillator.stop(stopTime);
@@ -438,9 +463,10 @@
             }
         }
 
-        function startClock() {
-            resetTimerDisplay();
-            startTime = Date.now();
+        function startClock(resumeFrom = 0) {
+            clearInterval(clockTimer);
+            startTime = Date.now() - (resumeFrom * 1000);
+            
             clockTimer = setInterval(() => {
                 elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
                 const minutes = Math.floor(elapsedSeconds / 60);
@@ -467,6 +493,7 @@
             clearInterval(clockTimer);
             timerDisplay.innerText = "00:00";
             elapsedSeconds = 0;
+            pausedTimeElapsed = 0;
         }
 
         function startAutoScroll() {
@@ -490,7 +517,28 @@
             }, intervalTime);
 
             resetUIHideTimer();
-            startClock(); 
+            startClock(pausedTimeElapsed); 
+        }
+
+        // --- Pause Function Engine ---
+        function pauseAutoScroll() {
+            clearInterval(scrollTimer);
+            stopClock();
+            if (UIHideTimeout) clearTimeout(UIHideTimeout);
+            
+            isPaused = true;
+            pausedTimeElapsed = elapsedSeconds; // Freeze current elapsed seconds
+
+            showUIElements();
+            btnResume.style.display = "inline-flex"; // Activate Resume Option Trigger
+        }
+
+        // --- Resume Function Engine ---
+        function resumeAutoScroll() {
+            isPaused = false;
+            btnResume.style.display = "none";
+            
+            startAutoScroll(); // Will start clock using stored pausedTimeElapsed
         }
 
         function stopAutoScroll() {
@@ -499,11 +547,15 @@
             if (UIHideTimeout) clearTimeout(UIHideTimeout);
             
             isScrolling = false;
+            isPaused = false;
+            pausedTimeElapsed = 0;
+            
             controlPanel.classList.remove('scrolling-mode');
             controlPanel.classList.remove('hidden');
             
             btnToggle.classList.remove('scrolling');
             btnToggle.innerText = "▶ Start Auto Scroll";
+            btnResume.style.display = "none";
             
             viewerContainer.style.paddingTop = "155px";
             viewerContainer.style.paddingBottom = "0px";
@@ -528,13 +580,16 @@
                 if (document.fullscreenElement) document.exitFullscreen();
             } else {
                 isScrolling = true;
+                isPaused = false;
+                pausedTimeElapsed = 0;
+                
                 viewerContainer.style.paddingTop = "0px";
                 viewerContainer.style.paddingBottom = "165px";
                 
                 controlPanel.classList.add('scrolling-mode');
                 controlPanel.classList.add('hidden'); 
                 
-                btnToggle.innerText = "⏸ Stop Scroll";
+                btnToggle.innerText = "盒子 Stop Scroll";
                 btnToggle.classList.add('scrolling');
 
                 if (document.documentElement.requestFullscreen) {
@@ -547,6 +602,12 @@
             }
         });
 
+        // Resume Button Interaction
+        btnResume.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resumeAutoScroll();
+        });
+
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && isScrolling) {
                 stopAutoScroll();
@@ -554,7 +615,7 @@
         });
 
         scrollIntervalInput.addEventListener('change', () => {
-            if (isScrolling) startAutoScroll();
+            if (isScrolling && !isPaused) startAutoScroll();
         });
     </script>
 </body>
