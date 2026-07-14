@@ -40,7 +40,7 @@
             overflow: hidden;
         }
 
-        /* Responsive Control Panel Dashboard */
+        /* Control Panel */
         #control-panel {
             background-color: var(--bg-panel);
             padding: 12px 16px;
@@ -158,7 +158,7 @@
             background-color: var(--primary);
             color: white;
             flex: 1;
-            display: none; /* Hidden by default, only shows when paused */
+            display: none; 
         }
         
         #btn-resume:hover {
@@ -247,7 +247,7 @@
     </div>
 
     <script>
-        // --- ⚙️ STANDARD SECURE SERVICE WORKER REGISTRATION ⚙️ ---
+        // --- Service Worker Registration ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -275,7 +275,7 @@
         let startTime = 0;
         let elapsedSeconds = 0;
         let clockTimer = null;
-        let pausedTimeElapsed = 0; // Tracks elapsed time before pause
+        let pausedTimeElapsed = 0; 
 
         let globalAudioCtx = null;
 
@@ -286,7 +286,10 @@
         let isPanning = false;
         let initialDist = 0;
         let centerPoint = { x: 0, y: 0 };
-        let hasMoved = false; // Tracks drag vs tap behavior
+
+        // Precision Drag Tracking Coordinates
+        let touchStartPos = { x: 0, y: 0 };
+        let isDragActive = false;
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -322,13 +325,15 @@
         // --- Touch Engine Events ---
         viewerContainer.addEventListener('touchstart', (e) => {
             const rect = viewerContainer.getBoundingClientRect();
-            hasMoved = false;
-
+            isDragActive = false; 
+            
             if (e.touches.length === 1) {
                 isPanning = true;
                 start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
+                touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             } else if (e.touches.length === 2) {
                 isPanning = false;
+                isDragActive = true; // Pinch zoom counts as drag layout movement
                 initialDist = getDistance(e.touches[0], e.touches[1]);
                 const rawCenter = getCenter(e.touches[0], e.touches[1]);
                 centerPoint = { x: rawCenter.x - rect.left, y: rawCenter.y - rect.top };
@@ -336,8 +341,11 @@
         });
 
         viewerContainer.addEventListener('touchmove', (e) => {
-            hasMoved = true;
             if (isPanning && e.touches.length === 1) {
+                // If moved more than 6px, flag it as a swipe/drag action, not a click tap
+                if (Math.hypot(e.touches[0].clientX - touchStartPos.x, e.touches[0].clientY - touchStartPos.y) > 6) {
+                    isDragActive = true;
+                }
                 pointX = e.touches[0].clientX - start.x;
                 pointY = e.touches[0].clientY - start.y;
                 updateTransform();
@@ -365,14 +373,17 @@
 
         // --- Mouse Engine Events ---
         viewerContainer.addEventListener('mousedown', (e) => {
-            hasMoved = false;
+            isDragActive = false;
             isPanning = true;
             start = { x: e.clientX - pointX, y: e.clientY - pointY };
+            touchStartPos = { x: e.clientX, y: e.clientY };
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!isPanning) return;
-            hasMoved = true;
+            if (Math.hypot(e.clientX - touchStartPos.x, e.clientY - touchStartPos.y) > 6) {
+                isDragActive = true;
+            }
             pointX = e.clientX - start.x;
             pointY = e.clientY - start.y;
             updateTransform();
@@ -398,10 +409,10 @@
             updateTransform();
         }, { passive: false });
 
-        // --- Smart Screen Tap Logic for Pause Mechanism ---
+        // --- Isolated Precise Single Tap Click Filter ---
         viewerContainer.addEventListener('click', (e) => {
-            // Only trigger pause if it's a genuine click/tap on the viewer container area, not a drag/pan action
-            if (hasMoved) return;
+            // Cancel trigger if the user was scrolling or dragging the document viewport
+            if (isDragActive) return;
 
             if (isScrolling && !isPaused) {
                 pauseAutoScroll();
@@ -423,7 +434,6 @@
             UIHideTimeout = setTimeout(hideUIElements, 5000); 
         }
 
-        // Hardware Timeline Alerts Engine
         function triggerTimeAlert(count) {
             if (globalAudioCtx) {
                 if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
@@ -527,18 +537,21 @@
             if (UIHideTimeout) clearTimeout(UIHideTimeout);
             
             isPaused = true;
-            pausedTimeElapsed = elapsedSeconds; // Freeze current elapsed seconds
+            pausedTimeElapsed = elapsedSeconds; 
 
             showUIElements();
-            btnResume.style.display = "inline-flex"; // Activate Resume Option Trigger
+            btnToggle.innerText = "⏸ Stop Scroll"; 
+            btnResume.style.display = "inline-flex"; 
         }
 
         // --- Resume Function Engine ---
         function resumeAutoScroll() {
             isPaused = false;
             btnResume.style.display = "none";
+            btnToggle.innerText = "⏸ Stop Scroll";
             
-            startAutoScroll(); // Will start clock using stored pausedTimeElapsed
+            controlPanel.classList.add('hidden'); // Re-hide top panel automatically upon resume
+            startAutoScroll(); 
         }
 
         function stopAutoScroll() {
@@ -589,7 +602,7 @@
                 controlPanel.classList.add('scrolling-mode');
                 controlPanel.classList.add('hidden'); 
                 
-                btnToggle.innerText = "盒子 Stop Scroll";
+                btnToggle.innerText = "⏸ Stop Scroll";
                 btnToggle.classList.add('scrolling');
 
                 if (document.documentElement.requestFullscreen) {
@@ -602,7 +615,6 @@
             }
         });
 
-        // Resume Button Interaction
         btnResume.addEventListener('click', (e) => {
             e.stopPropagation();
             resumeAutoScroll();
