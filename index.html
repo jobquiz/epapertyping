@@ -196,6 +196,18 @@
             color: var(--text-main);
         }
 
+        /* Reset Button Style Configuration */
+        #btn-reset {
+            background-color: #4b5563;
+            color: white;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+
+        #btn-reset:hover {
+            background-color: #374151;
+        }
+
         #btn-toggle {
             background-color: var(--success);
             color: white;
@@ -208,7 +220,6 @@
             display: inline-flex;
         }
 
-        /* Home Button Style Configuration */
         #btn-home {
             background-color: #475569;
             color: white;
@@ -246,6 +257,9 @@
                     📁 Upload Image
                     <input type="file" id="file-input" accept="image/*" style="display: none;">
                 </label>
+                
+                <!-- 🔄 Reset Button Added Right in the Marked Space -->
+                <button id="btn-reset">🔄 Reset</button>
                 
                 <div class="timer-group">
                     ⏱️ <span id="timer-display">00:00</span>
@@ -293,6 +307,7 @@
         const btnToggle = document.getElementById('btn-toggle');
         const btnHome = document.getElementById('btn-home');
         const btnResume = document.getElementById('btn-resume');
+        const btnReset = document.getElementById('btn-reset');
         const scrollIntervalInput = document.getElementById('scroll-interval');
         const scrollAmountInput = document.getElementById('scroll-amount');
         const timerDisplay = document.getElementById('timer-display');
@@ -539,7 +554,7 @@
             startClock(pausedTimeElapsed); 
         }
 
-        // --- ⏸ Pause Engine (SHIFTS TO BOTTOM, SHOWS HOME & RESUME) ---
+        // --- ⏸ Pause Engine ---
         function pauseAutoScroll() {
             clearInterval(scrollTimer);
             stopClock();
@@ -547,16 +562,15 @@
             isPaused = true;
             pausedTimeElapsed = elapsedSeconds; 
 
-            // Shift shell to bottom
             controlPanel.classList.remove('hidden-top');
             controlPanel.classList.add('paused-mode');
             
-            btnToggle.style.display = "none"; // Hide main toggle button during pause
-            btnHome.style.display = "inline-flex"; // Deploy Home Button
-            btnResume.style.display = "inline-flex"; // Deploy Resume Button
+            btnToggle.style.display = "none"; 
+            btnHome.style.display = "inline-flex"; 
+            btnResume.style.display = "inline-flex"; 
         }
 
-        // --- ▶ Resume Engine (SHIFTS BACK TO TOP & HIDES) ---
+        // --- ▶ Resume Engine ---
         function resumeAutoScroll() {
             isPaused = false;
             btnHome.style.display = "none";
@@ -572,7 +586,7 @@
             startAutoScroll(); 
         }
 
-        // --- 🛑 Complete Reset Stop/Home Mode (RESTORES ORIGINAL TOP VIEW) ---
+        // --- 🛑 Complete Reset Stop Mode ---
         function stopAutoScroll() {
             clearInterval(scrollTimer);
             stopClock(); 
@@ -581,7 +595,6 @@
             isPaused = false;
             pausedTimeElapsed = 0;
             
-            // Re-initialize panel back to original structural state (Top View)
             controlPanel.className = ""; 
             btnToggle.style.display = "inline-flex";
             btnToggle.classList.remove('scrolling');
@@ -630,7 +643,25 @@
             }
         });
 
-        // Home Button click interaction logic (Exits Fullscreen & Resets Interface)
+        // --- 🔄 Time Reset Logic Configuration ---
+        btnReset.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            if (isScrolling && !isPaused) {
+                // If running, dynamic restart from 0
+                pausedTimeElapsed = 0;
+                startClock(0);
+            } else if (isPaused) {
+                // If paused, freeze at 00:00
+                pausedTimeElapsed = 0;
+                elapsedSeconds = 0;
+                timerDisplay.innerText = "00:00";
+            } else {
+                // If completely stopped at home screen
+                resetTimerDisplay();
+            }
+        });
+
         btnHome.addEventListener('click', (e) => {
             e.stopPropagation();
             stopAutoScroll();
